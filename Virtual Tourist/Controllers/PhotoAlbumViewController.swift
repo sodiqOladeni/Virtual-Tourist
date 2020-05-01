@@ -34,6 +34,7 @@ class PhotoAlbumViewController: UIViewController {
         flowLayout.minimumInteritemSpacing = spacingBetweenItems
         flowLayout.minimumLineSpacing = spacingBetweenItems
         flowLayout.itemSize = CGSize(width: dimension, height: dimension)
+        labelNoImagesAvailable.isHidden = true
         
         photoAlbumCollectionView.delegate = self
         photoAlbumCollectionView.dataSource = self
@@ -45,7 +46,7 @@ class PhotoAlbumViewController: UIViewController {
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        photoAlbumCollectionView.reloadData()
+//        photoAlbumCollectionView.reloadData()
     }
     
     override func viewDidDisappear(_ animated: Bool) {
@@ -71,9 +72,12 @@ class PhotoAlbumViewController: UIViewController {
     
     fileprivate func setupFetchedResultsController() {
         let fetchRequest:NSFetchRequest<Album> = Album.fetchRequest()
+        let predicate = NSPredicate(format: "albumsToPin == %@", pin)
         let sortDescriptor = NSSortDescriptor(key: "photoId", ascending: false)
         fetchRequest.sortDescriptors = [sortDescriptor]
+        fetchRequest.predicate = predicate
         fetchedResultContoller = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: dataController.viewContext, sectionNameKeyPath: nil, cacheName: nil)
+        fetchedResultContoller.delegate = self
         
         do {
             try fetchedResultContoller.performFetch()
@@ -100,7 +104,7 @@ extension PhotoAlbumViewController:MKMapViewDelegate{
 }
 
 extension PhotoAlbumViewController:UICollectionViewDelegate, UICollectionViewDataSource{
-        
+    
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         fetchedResultContoller.sections?[section].numberOfObjects ?? 0
     }
@@ -112,20 +116,17 @@ extension PhotoAlbumViewController:UICollectionViewDelegate, UICollectionViewDat
         DispatchQueue.main.async {
             if let imageData = currentCellData.photo {
                 currentCell.albumImageView.image = UIImage(data: imageData)
-                currentCell.setNeedsLayout()
             }
             currentCell.progressIndicator.isHidden = true
-            print("PinSelected ==> \(currentCellData)")
         }
-        
         return currentCell
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         let itemSelected = fetchedResultContoller.object(at: indexPath)
-        dataController.viewContext.delete(itemSelected)
-        try? dataController.viewContext.save()
-        
+        print(itemSelected)
+//        dataController.viewContext.delete(itemSelected)
+//        try? dataController.viewContext.save()
         collectionView.deleteItems(at: [indexPath])
     }
     
@@ -139,47 +140,55 @@ extension PhotoAlbumViewController:UICollectionViewDelegate, UICollectionViewDat
                     return
                 }
                 
+                
                 if let photos = photos {
-                    for eachPhoto in photos.photos.photo {
-                        let album = Album(context: self.dataController.viewContext)
-                        FlickrClient.downloadPhotoWithId(imageId: eachPhoto.id) { (imageData, error) in
-                            album.albumsToPin = self.pin
-                            album.photo = imageData
-                            album.photoId = eachPhoto.id
-                            try? self.dataController.viewContext.save()
+                    
+                    if photos.photos.photo.count < 1 {
+                        self.buttonNewCollection.isEnabled = true
+                        self.labelNoImagesAvailable.isHidden = false
+                        
+                    }else{
+                        self.labelNoImagesAvailable.isHidden = false
+                        for eachPhoto in photos.photos.photo {
+                            let album = Album(context: self.dataController.viewContext)
+                            FlickrClient.downloadPhotoWithId(photoUrl: eachPhoto.url_n) { (imageData, error) in
+                                album.albumsToPin = self.pin
+                                album.photo = imageData
+                                album.photoId = eachPhoto.id
+                                try? self.dataController.viewContext.save()
+                            }
                         }
                     }
                 }
                 
                 DispatchQueue.main.async {
                     self.buttonNewCollection.isEnabled = true
-                    self.labelNoImagesAvailable.isHidden = true
-                    self.photoAlbumCollectionView.reloadData()
+//                    self.photoAlbumCollectionView.reloadData()
                 }
             }
         }
     }
 }
 extension PhotoAlbumViewController:NSFetchedResultsControllerDelegate{
-    
-    
+
+
     func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange anObject: Any, at indexPath: IndexPath?, for type: NSFetchedResultsChangeType, newIndexPath: IndexPath?) {
         switch type {
         case .insert:
-            photoAlbumCollectionView.insertItems(at: [indexPath!])
+            photoAlbumCollectionView.insertItems(at: [newIndexPath!])
         case .delete:
             photoAlbumCollectionView.deleteItems(at: [indexPath!])
         case .update:
-            photoAlbumCollectionView.reloadItems(at: [indexPath!])
+            photoAlbumCollectionView.reloadItems(at: [newIndexPath!])
         case .move:
             photoAlbumCollectionView.moveItem(at: indexPath!, to: newIndexPath!)
         @unknown default:
             fatalError("")
         }
     }
-    
+
     func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange sectionInfo: NSFetchedResultsSectionInfo, atSectionIndex sectionIndex: Int, for type: NSFetchedResultsChangeType) {
-        
+
         let indexSet = IndexSet(integer: sectionIndex)
         switch type {
         case .insert: photoAlbumCollectionView.insertSections(indexSet)

@@ -32,5 +32,6 @@ struct Photo:Codable {
     let ispublic:Int
     let isfriend:Int
     let isfamily:Int
+    let url_n:String
 }
 

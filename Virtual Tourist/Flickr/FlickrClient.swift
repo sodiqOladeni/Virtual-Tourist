@@ -23,7 +23,7 @@ class FlickrClient {
         var stringValue:String{
             switch self {
             case .createGetPhotoForLocation(let lon, let lat):
-                return FlickrEndpoint.baseUrl+FlickrEndpoint.photoForLocation+"&lat=\(lat)&lon=\(lon)"+"&per_page=\(FlickrEndpoint.photosCount)"+"&format=json&nojsoncallback=1"
+                return FlickrEndpoint.baseUrl+FlickrEndpoint.photoForLocation+"&lat=\(lat)&lon=\(lon)"+"&per_page=\(FlickrEndpoint.photosCount)"+"&format=json&nojsoncallback=1&extras=url_n"
             case .getAPhoto(let photoId):
                 return "https://www.flickr.com/photo.gne?rb=1&id=\(photoId)"
             }
@@ -35,7 +35,7 @@ class FlickrClient {
     }
     
     class func getPhotosForLocation(latitude:Double, longitude:Double, completionHandler: @escaping (PhotosResponse?, Error?) ->Void) {
-        var request = URLRequest(url: FlickrEndpoint.createGetPhotoForLocation(3.879290, 7.348720).url)
+        var request = URLRequest(url: FlickrEndpoint.createGetPhotoForLocation(longitude, latitude).url)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("application/json", forHTTPHeaderField: "Accept")
@@ -60,12 +60,8 @@ class FlickrClient {
         task.resume()
     }
     
-    class func downloadPhotoWithId(imageId:String, completion: @escaping (Data, Error?)-> Void) {
-        var request = URLRequest(url: URL(string: FlickrEndpoint.getAPhoto(imageId).stringValue)!)
-        request.httpMethod = "GET"
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.addValue("application/json", forHTTPHeaderField: "Accept")
-        let task = URLSession.shared.dataTask(with: FlickrEndpoint.getAPhoto(imageId).url) { data, response, error in
+    class func downloadPhotoWithId(photoUrl:String, completion: @escaping (Data, Error?)-> Void) {
+        let task = URLSession.shared.dataTask(with: URL(string: photoUrl)!) { data, response, error in
             if let data = data{
                 DispatchQueue.main.async {
                     completion(data, error)
