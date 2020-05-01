@@ -15,6 +15,7 @@ class TravelLocationMapViewController: UIViewController {
     @IBOutlet weak var mapView: MKMapView!
     var dataController:DataController!
     var fetchedResultContoller:NSFetchedResultsController<Pin>!
+    private var allPins:[Pin] = []
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -36,18 +37,16 @@ class TravelLocationMapViewController: UIViewController {
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == Constants.Identifier.navigateToAlbumViewController{
             let albumViewController = segue.destination as! PhotoAlbumViewController
-            if let mapPins = fetchedResultContoller.fetchedObjects{
-                let annotation = mapView.selectedAnnotations[0]
-                // getting the index of the selected annotation to set pin value in destination VC
-                guard let indexPath = mapPins.firstIndex(where: { (pin) -> Bool in
-                    pin.latitude == annotation.coordinate.latitude && pin.longitude == annotation.coordinate.longitude
-                }) else {
-                    return
+            
+            let pinCoordinate = sender as! CLLocationCoordinate2D
+            for pin in allPins {
+                if pin.latitude == pinCoordinate.latitude && pin.longitude == pinCoordinate.longitude {
+                    albumViewController.pin = pin
+                    break
                 }
-                print("PinSelected ==> \(mapPins[indexPath])")
-                albumViewController.pin = mapPins[indexPath]
-                albumViewController.dataController = dataController
             }
+            
+            albumViewController.dataController = dataController
         }
     }
     
@@ -71,6 +70,7 @@ class TravelLocationMapViewController: UIViewController {
         let pin = Pin(context: dataController.viewContext)
         pin.latitude = annotation.coordinate.latitude
         pin.longitude = annotation.coordinate.longitude
+        allPins.append(pin)
         try? dataController.viewContext.save()
     }
     
@@ -97,6 +97,7 @@ class TravelLocationMapViewController: UIViewController {
         if let availablePins = try? dataController.viewContext.fetch(fetchRequest){
             var currentAnnotations = [MKPointAnnotation]()
             
+            allPins = availablePins
             for eachPin in availablePins{
                 let annotation = MKPointAnnotation()
                 annotation.coordinate.latitude = eachPin.latitude
@@ -112,8 +113,7 @@ class TravelLocationMapViewController: UIViewController {
     
     fileprivate func setupFetchedResultsController() {
         let fetchRequest:NSFetchRequest<Pin> = Pin.fetchRequest()
-        let sortDescriptor = NSSortDescriptor(key: "totalAlbumPhoto", ascending: false)
-        fetchRequest.sortDescriptors = [sortDescriptor]
+        fetchRequest.sortDescriptors = []
         fetchedResultContoller = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: dataController.viewContext, sectionNameKeyPath: nil, cacheName: nil)
         
         do {
@@ -151,7 +151,8 @@ extension TravelLocationMapViewController:MKMapViewDelegate{
     
     
     func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
-        performSegue(withIdentifier: Constants.Identifier.navigateToAlbumViewController, sender: nil)
+        performSegue(withIdentifier: Constants.Identifier.navigateToAlbumViewController, sender:  view.annotation?.coordinate)
+        mapView.deselectAnnotation(view.annotation, animated: false)
     }
 }
 

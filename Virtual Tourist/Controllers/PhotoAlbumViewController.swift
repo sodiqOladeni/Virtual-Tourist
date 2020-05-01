@@ -16,6 +16,8 @@ class PhotoAlbumViewController: UIViewController {
     @IBOutlet weak var photoAlbumCollectionView: UICollectionView!
     @IBOutlet weak var buttonNewCollection: UIButton!
     @IBOutlet weak var labelNoImagesAvailable: UILabel!
+    @IBOutlet weak var flowLayout: UICollectionViewFlowLayout!
+    private let spacingBetweenItems:CGFloat = 5
     
     var dataController:DataController!
     var fetchedResultContoller:NSFetchedResultsController<Album>!
@@ -25,6 +27,13 @@ class PhotoAlbumViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         mapView.delegate = self
+        
+        let space: CGFloat = 3.0
+        let dimension = (self.view.frame.size.width - (2 * space)) / 3.0
+        
+        flowLayout.minimumInteritemSpacing = spacingBetweenItems
+        flowLayout.minimumLineSpacing = spacingBetweenItems
+        flowLayout.itemSize = CGSize(width: dimension, height: dimension)
         
         photoAlbumCollectionView.delegate = self
         photoAlbumCollectionView.dataSource = self
@@ -91,7 +100,7 @@ extension PhotoAlbumViewController:MKMapViewDelegate{
 }
 
 extension PhotoAlbumViewController:UICollectionViewDelegate, UICollectionViewDataSource{
-    
+        
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         fetchedResultContoller.sections?[section].numberOfObjects ?? 0
     }
@@ -99,10 +108,16 @@ extension PhotoAlbumViewController:UICollectionViewDelegate, UICollectionViewDat
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let currentCell = collectionView.dequeueReusableCell(withReuseIdentifier: Constants.Identifier.albumCollectionCellId, for: indexPath) as! PhotoAlbumCollectionViewCell
         let currentCellData = fetchedResultContoller.object(at: indexPath)
-        if let imageData = currentCellData.photo {
-            currentCell.albumImageView.image = UIImage(data: imageData)
+        
+        DispatchQueue.main.async {
+            if let imageData = currentCellData.photo {
+                currentCell.albumImageView.image = UIImage(data: imageData)
+                currentCell.setNeedsLayout()
+            }
+            currentCell.progressIndicator.isHidden = true
+            print("PinSelected ==> \(currentCellData)")
         }
-        currentCell.progressIndicator.isHidden = false
+        
         return currentCell
     }
     
@@ -118,10 +133,9 @@ extension PhotoAlbumViewController:UICollectionViewDelegate, UICollectionViewDat
         if pin.pinAlbums?.count == 0 {
             buttonNewCollection.isEnabled = false
             FlickrClient.getPhotosForLocation(latitude: pin.latitude, longitude: pin.longitude) { (photos, error) in
-                guard error != nil else{
+                guard error == nil else {
                     self.buttonNewCollection.isEnabled = true
                     self.labelNoImagesAvailable.isHidden = false
-                    print("Error downloading photos")
                     return
                 }
                 
@@ -129,6 +143,7 @@ extension PhotoAlbumViewController:UICollectionViewDelegate, UICollectionViewDat
                     for eachPhoto in photos.photos.photo {
                         let album = Album(context: self.dataController.viewContext)
                         FlickrClient.downloadPhotoWithId(imageId: eachPhoto.id) { (imageData, error) in
+                            album.albumsToPin = self.pin
                             album.photo = imageData
                             album.photoId = eachPhoto.id
                             try? self.dataController.viewContext.save()
