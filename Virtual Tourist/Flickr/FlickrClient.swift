@@ -23,7 +23,7 @@ class FlickrClient {
         var stringValue:String{
             switch self {
             case .createGetPhotoForLocation(let lon, let lat):
-                return FlickrEndpoint.baseUrl+FlickrEndpoint.photoForLocation+"&lat=\(lat)&lon=\(lon)"+"&per_page=\(FlickrEndpoint.photosCount)"+"&format=json&nojsoncallback=1&extras=url_n"
+                return FlickrEndpoint.baseUrl+FlickrEndpoint.photoForLocation+"&lat=\(lat)&lon=\(lon)"+"&per_page=\(FlickrEndpoint.photosCount)"+"&format=json&nojsoncallback=1&extras=url_n&page=\(Int.random(in: 1...10))"
             case .getAPhoto(let photoId):
                 return "https://www.flickr.com/photo.gne?rb=1&id=\(photoId)"
             }
@@ -36,6 +36,7 @@ class FlickrClient {
     
     class func getPhotosForLocation(latitude:Double, longitude:Double, completionHandler: @escaping (PhotosResponse?, Error?) ->Void) {
         var request = URLRequest(url: FlickrEndpoint.createGetPhotoForLocation(longitude, latitude).url)
+        print(request.url!)
         request.httpMethod = "GET"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("application/json", forHTTPHeaderField: "Accept")
@@ -50,6 +51,7 @@ class FlickrClient {
             let decoder = JSONDecoder()
             do {
                 let responseObject = try decoder.decode(PhotosResponse.self, from: data)
+            
                 DispatchQueue.main.async {
                     completionHandler(responseObject, nil)
                 }

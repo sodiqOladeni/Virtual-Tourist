@@ -9,6 +9,7 @@
 import UIKit
 import MapKit
 import CoreData
+import JGProgressHUD
 
 class PhotoAlbumViewController: UIViewController {
     
@@ -18,6 +19,7 @@ class PhotoAlbumViewController: UIViewController {
     @IBOutlet weak var labelNoImagesAvailable: UILabel!
     @IBOutlet weak var flowLayout: UICollectionViewFlowLayout!
     private let spacingBetweenItems:CGFloat = 5
+    private var progressHud:JGProgressHUD!
     
     var dataController:DataController!
     var fetchedResultContoller:NSFetchedResultsController<Album>!
@@ -44,18 +46,18 @@ class PhotoAlbumViewController: UIViewController {
         downloadPhotosFromFlicker()
     }
     
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-//        photoAlbumCollectionView.reloadData()
-    }
-    
     override func viewDidDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         fetchedResultContoller = nil
     }
     
     @IBAction func clickedButtonAddNewCollection(_ sender: UIButton) {
-        
+        let alertController = UIAlertController(title: "Confirm Delete", message: "Are you sure you want to download new Albums?", preferredStyle: .alert)
+        alertController.addAction(UIAlertAction(title: "Yes", style: .default, handler: { (alertAction) in
+            self.removeAllPhotosWithLoopAndownloadNewPhotos()
+        }))
+        alertController.addAction(UIAlertAction(title: "No", style: .cancel, handler: nil))
+        present(alertController, animated: true, completion: nil)
     }
     
     fileprivate func setupMap(){
@@ -116,62 +118,110 @@ extension PhotoAlbumViewController:UICollectionViewDelegate, UICollectionViewDat
         DispatchQueue.main.async {
             if let imageData = currentCellData.photo {
                 currentCell.albumImageView.image = UIImage(data: imageData)
+                currentCell.progressIndicator.isHidden = true
             }
-            currentCell.progressIndicator.isHidden = true
         }
         return currentCell
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         let itemSelected = fetchedResultContoller.object(at: indexPath)
-        print(itemSelected)
-//        dataController.viewContext.delete(itemSelected)
-//        try? dataController.viewContext.save()
-        collectionView.deleteItems(at: [indexPath])
+        dataController.viewContext.delete(itemSelected)
     }
+    
     
     fileprivate func downloadPhotosFromFlicker(){
         if pin.pinAlbums?.count == 0 {
             buttonNewCollection.isEnabled = false
+            progressHud = startProgressDialog(progressMessage: "Please wait...")
+            
             FlickrClient.getPhotosForLocation(latitude: pin.latitude, longitude: pin.longitude) { (photos, error) in
                 guard error == nil else {
-                    self.buttonNewCollection.isEnabled = true
-                    self.labelNoImagesAvailable.isHidden = false
+                   self.displayNoImagesAvailable()
                     return
                 }
                 
-                
                 if let photos = photos {
-                    
                     if photos.photos.photo.count < 1 {
-                        self.buttonNewCollection.isEnabled = true
-                        self.labelNoImagesAvailable.isHidden = false
+                        self.displayNoImagesAvailable()
                         
                     }else{
-                        self.labelNoImagesAvailable.isHidden = false
-                        for eachPhoto in photos.photos.photo {
-                            let album = Album(context: self.dataController.viewContext)
-                            FlickrClient.downloadPhotoWithId(photoUrl: eachPhoto.url_n) { (imageData, error) in
-                                album.albumsToPin = self.pin
-                                album.photo = imageData
-                                album.photoId = eachPhoto.id
-                                try? self.dataController.viewContext.save()
-                            }
-                        }
+                        self.downloadAndDisplayImages(photos)
                     }
                 }
                 
                 DispatchQueue.main.async {
+                    self.stopProgressDialog(hud: self.progressHud)
                     self.buttonNewCollection.isEnabled = true
-//                    self.photoAlbumCollectionView.reloadData()
                 }
             }
         }
     }
+    
+    fileprivate func downloadAndDisplayImages(_ photos: PhotosResponse) {
+        self.labelNoImagesAvailable.isHidden = true
+        for eachPhoto in photos.photos.photo {
+            let album = Album(context: self.dataController.viewContext)
+            FlickrClient.downloadPhotoWithId(photoUrl: eachPhoto.url_n) { (imageData, error) in
+                album.albumsToPin = self.pin
+                album.photo = imageData
+                album.photoId = eachPhoto.id
+                album.albumsToPin?.totalAlbumPhoto = Int32(photos.photos.photo.count)
+                try? self.dataController.viewContext.save()
+            }
+        }
+    }
+    
+    
+       fileprivate func displayNoImagesAvailable() {
+           self.buttonNewCollection.isEnabled = true
+           self.labelNoImagesAvailable.isHidden = false
+       }
+    
+    
+    fileprivate func startProgressDialog(progressMessage:String) ->JGProgressHUD {
+        var hud:JGProgressHUD?
+        if hud == nil {
+            hud = JGProgressHUD(style: .dark)
+            hud!.textLabel.text = progressMessage
+        }
+        hud!.show(in: self.view)
+        return hud!
+    }
+    
+    fileprivate func stopProgressDialog(hud:JGProgressHUD?){
+        if let hud = hud{
+            hud.dismiss()
+        }
+    }
+    
+    func removeAllPhotosWithLoopAndownloadNewPhotos() {
+        if let albums = fetchedResultContoller.fetchedObjects {
+            
+            for album in albums {
+                self.dataController.viewContext.performAndWait {
+                    self.removePhoto(album: album)
+                }
+            }
+        }
+        
+        self.photoAlbumCollectionView.reloadData()
+        photoAlbumCollectionView.numberOfItems(inSection: 0)
+        // Load new collections
+        downloadPhotosFromFlicker()
+    }
+    
+    func removePhoto(album: Album) {
+        dataController.viewContext.delete(album)
+        do {
+            try dataController.viewContext.save()
+        } catch {
+            print(error)
+        }
+    }
 }
 extension PhotoAlbumViewController:NSFetchedResultsControllerDelegate{
-
-
+    
     func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange anObject: Any, at indexPath: IndexPath?, for type: NSFetchedResultsChangeType, newIndexPath: IndexPath?) {
         switch type {
         case .insert:
@@ -186,9 +236,9 @@ extension PhotoAlbumViewController:NSFetchedResultsControllerDelegate{
             fatalError("")
         }
     }
-
+    
     func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange sectionInfo: NSFetchedResultsSectionInfo, atSectionIndex sectionIndex: Int, for type: NSFetchedResultsChangeType) {
-
+        
         let indexSet = IndexSet(integer: sectionIndex)
         switch type {
         case .insert: photoAlbumCollectionView.insertSections(indexSet)

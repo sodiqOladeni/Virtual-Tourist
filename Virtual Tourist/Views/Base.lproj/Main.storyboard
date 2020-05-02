@@ -86,8 +86,9 @@
                                                             <rect key="frame" x="0.0" y="0.0" width="150" height="150"/>
                                                             <autoresizingMask key="autoresizingMask"/>
                                                             <subviews>
-                                                                <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="iMM-ho-jZh">
-                                                                    <rect key="frame" x="0.0" y="0.0" width="150" height="150"/>
+                                                                <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="location.circle" catalog="system" translatesAutoresizingMaskIntoConstraints="NO" id="iMM-ho-jZh">
+                                                                    <rect key="frame" x="0.0" y="1" width="150" height="148.66666666666666"/>
+                                                                    <color key="tintColor" red="0.50980392159999999" green="0.50980392159999999" blue="0.50980392159999999" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                                                     <constraints>
                                                                         <constraint firstAttribute="height" constant="150" id="Nnt-h6-Uhi"/>
                                                                         <constraint firstAttribute="width" constant="150" id="Upf-wM-BD5"/>
@@ -95,6 +96,8 @@
                                                                 </imageView>
                                                                 <activityIndicatorView opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" style="large" translatesAutoresizingMaskIntoConstraints="NO" id="REg-gG-HJH">
                                                                     <rect key="frame" x="56.666666666666657" y="56.666666666666657" width="37" height="37"/>
+                                                                    <color key="tintColor" systemColor="systemBlueColor" red="0.0" green="0.47843137250000001" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                                                    <color key="color" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                                 </activityIndicatorView>
                                                             </subviews>
                                                             <constraints>
@@ -134,6 +137,9 @@
                                             <constraint firstAttribute="height" constant="50" id="c53-YT-1cl"/>
                                         </constraints>
                                         <state key="normal" title="New Collection"/>
+                                        <connections>
+                                            <action selector="clickedButtonAddNewCollection:" destination="dC3-ah-qmj" eventType="touchUpInside" id="LaU-pE-AYa"/>
+                                        </connections>
                                     </button>
                                 </subviews>
                             </stackView>
@@ -179,4 +185,7 @@
             <point key="canvasLocation" x="-39.130434782608695" y="97.767857142857139"/>
         </scene>
     </scenes>
+    <resources>
+        <image name="location.circle" catalog="system" width="128" height="121"/>
+    </resources>
 </document>

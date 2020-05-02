@@ -85,7 +85,9 @@ class TravelLocationMapViewController: UIViewController {
             let centerCoordinate = CLLocationCoordinate2D(latitude: centerLatitude, longitude: centerLongitude)
             let spanCoordinate = MKCoordinateSpan(latitudeDelta: latitudeDelta, longitudeDelta: longitudeDelta)
             let region = MKCoordinateRegion(center: centerCoordinate, span: spanCoordinate)
+            
             self.mapView.setRegion(region, animated: true)
+            self.mapView.reloadInputViews()
         } else {
             defaults.set(true, forKey: Constants.App.appHasLaunchBefore)
         }
